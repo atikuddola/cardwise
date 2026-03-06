@@ -45,20 +45,22 @@ export default function Home() {
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [openFaq, setOpenFaq] = useState(null);
+  const [compareCards, setCompareCards] = useState([]);
+  const [showCompare, setShowCompare] = useState(false);
 
   useEffect(() => {
     API.get("/cards").then((res) => setCards(res.data || []));
   }, []);
 
-  const filteredCards = cards.filter((card) => {
-    const matchesFilter = filter === "all" || (card.category || "").includes(filter);
-    const matchesSearch =
-      search === "" ||
-      (card.card_name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (card.bank_name || "").toLowerCase().includes(search.toLowerCase()) ||
-      (card.rewards || "").toLowerCase().includes(search.toLowerCase());
-    return matchesFilter && matchesSearch;
-  });
+  const toggleCompare = (card) => {
+    if (compareCards.find(c => c.id === card.id)) {
+      setCompareCards(compareCards.filter(c => c.id !== card.id));
+    } else if (compareCards.length < 3) {
+      setCompareCards([...compareCards, card]);
+    }
+  };
+
+  const isInCompare = (cardId) => compareCards.some(c => c.id === cardId);
 
   const renderStars = (rating) => {
     return "★".repeat(rating || 0) + "☆".repeat(5 - (rating || 0));
@@ -127,6 +129,7 @@ export default function Home() {
           <table id="cardTable">
             <thead>
               <tr>
+                <th>Compare</th>
                 <th>Card</th>
                 <th>Annual Fee</th>
                 <th>APR</th>
@@ -139,13 +142,22 @@ export default function Home() {
             <tbody>
               {filteredCards.length === 0 ? (
                 <tr>
-                  <td colSpan="7" style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>
+                  <td colSpan="8" style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>
                     {cards.length === 0 ? "No cards found. Add cards from admin panel." : "No cards match your search."}
                   </td>
                 </tr>
               ) : (
                 filteredCards.map((card) => (
                   <tr key={card.id}>
+                    <td>
+                      <input 
+                        type="checkbox" 
+                        checked={isInCompare(card.id)}
+                        onChange={() => toggleCompare(card)}
+                        disabled={!isInCompare(card.id) && compareCards.length >= 3}
+                        className="compare-checkbox"
+                      />
+                    </td>
                     <td>
                       <div className="card-cell">
                         <div className="card-img-wrap">
@@ -182,6 +194,110 @@ export default function Home() {
         </div>
         <p className="affiliate-note">* CardWise may receive compensation when you click "Apply Now." This does not affect our ratings or rankings.</p>
       </section>
+
+      {/* Compare Bar */}
+      {compareCards.length > 0 && (
+        <div className="compare-bar">
+          <div className="compare-bar-content">
+            <div className="compare-cards-preview">
+              {compareCards.map(card => (
+                <div key={card.id} className="compare-card-mini">
+                  <span>{card.card_name}</span>
+                  <button onClick={() => toggleCompare(card)}>×</button>
+                </div>
+              ))}
+              {compareCards.length < 3 && (
+                <span className="compare-more">Select up to {3 - compareCards.length} more</span>
+              )}
+            </div>
+            <button className="btn btn-primary" onClick={() => setShowCompare(true)}>
+              Compare ({compareCards.length})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Compare Modal */}
+      {showCompare && (
+        <div className="modal-overlay open" onClick={(e) => e.target === e.currentTarget && setShowCompare(false)}>
+          <div className="modal compare-modal">
+            <div className="modal-header">
+              <h3>Compare Cards</h3>
+              <button className="modal-close" onClick={() => setShowCompare(false)}>×</button>
+            </div>
+            <div className="modal-body">
+              <div className="compare-table-wrap">
+                <table className="compare-table">
+                  <thead>
+                    <tr>
+                      <th>Feature</th>
+                      {compareCards.map(card => (
+                        <th key={card.id}>{card.card_name}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Bank</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{card.bank_name}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td>Annual Fee</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{card.annual_fee}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td>APR</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{card.apr}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td>Rewards</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{card.rewards}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td>Sign-up Bonus</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{card.signup_bonus}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td>Category</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{card.category}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td>Rating</td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>{renderStars(card.rating)}</td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td></td>
+                      {compareCards.map(card => (
+                        <td key={card.id}>
+                          {card.affiliate_link ? (
+                            <a className="apply-btn" href={card.affiliate_link} target="_blank" rel="noopener">Apply →</a>
+                          ) : (
+                            <button className="apply-btn" onClick={() => alert("Link not set yet.")}>Apply →</button>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Features Section */}
       <section id="features">
