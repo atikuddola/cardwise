@@ -47,10 +47,28 @@ export default function Home() {
   const [openFaq, setOpenFaq] = useState(null);
   const [compareCards, setCompareCards] = useState([]);
   const [showCompare, setShowCompare] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    API.get("/cards").then((res) => setCards(res.data || []));
+    API.get("/cards")
+      .then((res) => setCards(res.data || []))
+      .catch((err) => {
+        console.error("Failed to load cards:", err);
+        setError("Failed to load cards. Please try again later.");
+      })
+      .finally(() => setLoading(false));
   }, []);
+
+  const filteredCards = cards.filter((card) => {
+    const matchesFilter = filter === "all" || (card.category || "").includes(filter);
+    const matchesSearch =
+      search === "" ||
+      (card.card_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (card.bank_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (card.rewards || "").toLowerCase().includes(search.toLowerCase());
+    return matchesFilter && matchesSearch;
+  });
 
   const toggleCompare = (card) => {
     if (compareCards.find(c => c.id === card.id)) {
@@ -126,28 +144,30 @@ export default function Home() {
           </div>
         </div>
         <div className="table-wrap">
-          <table id="cardTable">
-            <thead>
-              <tr>
-                <th>Compare</th>
-                <th>Card</th>
-                <th>Annual Fee</th>
-                <th>APR</th>
-                <th>Rewards / Benefits</th>
-                <th>Sign-up Bonus / Perk</th>
-                <th>Rating</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredCards.length === 0 ? (
+          {loading ? (
+            <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>Loading cards...</div>
+          ) : error ? (
+            <div style={{ textAlign: "center", padding: "3rem", color: "#ef4444" }}>{error}</div>
+          ) : filteredCards.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>
+              {cards.length === 0 ? "No cards found. Add cards from admin panel." : "No cards match your search."}
+            </div>
+          ) : (
+            <table id="cardTable">
+              <thead>
                 <tr>
-                  <td colSpan="8" style={{ textAlign: "center", padding: "3rem", color: "#9ca3af" }}>
-                    {cards.length === 0 ? "No cards found. Add cards from admin panel." : "No cards match your search."}
-                  </td>
+                  <th>Compare</th>
+                  <th>Card</th>
+                  <th>Annual Fee</th>
+                  <th>APR</th>
+                  <th>Rewards / Benefits</th>
+                  <th>Sign-up Bonus / Perk</th>
+                  <th>Rating</th>
+                  <th></th>
                 </tr>
-              ) : (
-                filteredCards.map((card) => (
+              </thead>
+              <tbody>
+                {filteredCards.map((card) => (
                   <tr key={card.id}>
                     <td>
                       <input 
@@ -187,10 +207,10 @@ export default function Home() {
                       )}
                     </td>
                   </tr>
-                ))
-              )}
-            </tbody>
-          </table>
+                ))}
+              </tbody>
+            </table>
+          )}
         </div>
         <p className="affiliate-note">* CardWise may receive compensation when you click "Apply Now." This does not affect our ratings or rankings.</p>
       </section>
